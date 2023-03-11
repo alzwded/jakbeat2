@@ -26,6 +26,6 @@ jb4: cli.cpp engine.h libengine.a
 
 ifeq ($(BUILDGUI), 1)
 libgui.so: gui.cpp engine.h
-	g++ --std=c++17 $(CXXFLAGS) -I. -L. -shared -fPIC -o libgui.so `fltk-config --use-gl --cxxflags` gui.cpp `fltk-config --use-gl --libs` -lengine
+	g++ --std=c++17 $(CXXFLAGS) -I. -L. -shared -fPIC -o libgui.so `fltk-config --use-gl --cxxflags` gui.cpp `fltk-config --use-gl --ldflags` -lengine
 endif
 
