@@ -9,7 +9,6 @@ CXXFLAGS += -DBUILDGUI=1
 endif
 
 all: $(ALL)
-	echo $^
 
 clean:
 	rm -rf libgui.so *.o jb4 libengine.a
