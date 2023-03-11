@@ -1,0 +1,11 @@
+jb4
+*.so
+*.a
+*.o
+*.log
+*.wav
+*.sng
+*.pat
+*.drm
+__*
+*.out
