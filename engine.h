@@ -14,14 +14,14 @@ struct __attribute__((visibility("default"))) Engine
         FILTER,
         BLEND,
         TEMPO,
-        N1LP, N1HP, N1SAG,
-        N2LP, N2HP, N2SAG,
-        N3LP, N3HP, N3SAG,
-        N4LP, N4HP, N4SAG,
-        N5LP, N5HP, N5SAG,
-        N6LP, N6HP, N6SAG,
-        N7LP, N7HP, N7SAG,
-        N8LP, N8HP, N8SAG,
+        N1VOLUME, N1LP, N1HP, N1ENVELOPE,
+        N2VOLUME, N2LP, N2HP, N2ENVELOPE,
+        N3VOLUME, N3LP, N3HP, N3ENVELOPE,
+        N4VOLUME, N4LP, N4HP, N4ENVELOPE,
+        N5VOLUME, N5LP, N5HP, N5ENVELOPE,
+        N6VOLUME, N6LP, N6HP, N6ENVELOPE,
+        N7VOLUME, N7LP, N7HP, N7ENVELOPE,
+        N8VOLUME, N8LP, N8HP, N8ENVELOPE,
         SQ1LP, SQ1HP,
         SQ2LP, SQ2HP,
         TRVOL,
@@ -30,20 +30,22 @@ struct __attribute__((visibility("default"))) Engine
     };
 
     enum class Control {
-        N1VOLUME, N1WHEN,
-        N2VOLUME, N2WHEN,
-        N3VOLUME, N3WHEN,
-        N4VOLUME, N4WHEN,
-        N5VOLUME, N5WHEN,
-        N6VOLUME, N6WHEN,
-        N7VOLUME, N7WHEN,
-        N8VOLUME, N8WHEN,
-        SQ1, SQ2, TR,
+        N1WHEN,
+        N2WHEN,
+        N3WHEN,
+        N4WHEN,
+        N5WHEN,
+        N6WHEN,
+        N7WHEN,
+        N8WHEN,
+        SQ1,
+        SQ2,
+        TR,
 
         _SIZE_
     };
 
-    typedef int Pattern[32];
+    typedef int Pattern[16];
     static_assert(sizeof(Pattern)/sizeof(int) >= static_cast<size_t>(Control::_SIZE_), "bad size");
 
     typedef int Globals[64];

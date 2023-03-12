@@ -41,11 +41,13 @@ Engine::Engine(const char* path)
             impl->fd == -1)
         err(EXIT_FAILURE, "can't open %s\n", path);
     off_t sz = lseek(impl->fd, 0, SEEK_END);
+    bool reinit = false;
     if(sz < 4) {
         static const int cv = CURRENT_VERSION;
         ftruncate(impl->fd, FILE_SIZE);
         lseek(impl->fd, 0, SEEK_SET);
         write(impl->fd, &cv, sizeof(cv));
+        reinit = true;
     }
     if(sz < FILE_SIZE) ftruncate(impl->fd, FILE_SIZE);
     if(sz > FILE_SIZE) warn("%s is larger (%d) than the expected %d\n",
@@ -64,6 +66,16 @@ Engine::Engine(const char* path)
                 path,
                 version,
                 CURRENT_VERSION);
+    if(reinit) {
+        auto& g = *globals();
+        g[static_cast<int>(Global::VOLUME)] = 64;
+        g[static_cast<int>(Global::FILTER)] = 127;
+        g[static_cast<int>(Global::BLEND)] = 0;
+        // 0..127     44100..8*44100; 120bpm = 2s = 127/8
+        // 0..127     32..256 bpm
+        // 120bpm = (120-32)/256 * 127
+        g[static_cast<int>(Global::TEMPO)] = (120-32)*127/256 + 1;
+    }
 }
 
 Engine::~Engine()
