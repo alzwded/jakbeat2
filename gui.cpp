@@ -6,6 +6,8 @@
 #include <FL/Fl_Dial.H>
 #include <FL/Fl_Slider.H>
 
+#include <SDL/SDL.h>
+
 #include <list>
 #include <memory>
 #include <functional>
@@ -50,7 +52,7 @@ class MainWindow
 
     Engine* engine;
     int pattern64;
-    bool arrangement;
+    bool arrangement, playing;
     std::list<std::unique_ptr<Fl_Widget>> owned;
     std::list<Fl_Widget*> group1;
     std::list<Fl_Widget*> group2;
@@ -122,6 +124,7 @@ public:
         , engine(engine_)
         , pattern64(0)
         , arrangement(false)
+        , playing(false)
         , owned()
         , group1()
         , group2()
@@ -129,11 +132,12 @@ public:
         , datas()
         , trash()
     {
+        label("JakBeat2");
         // always visible
         (void) AddKnob(1, 0, "VOL", Engine::Global::VOLUME);
         (void) AddKnob(2, 0, "FLT", Engine::Global::FILTER);
-        (void) AddKnob(3, 0, "BLND", Engine::Global::FILTER);
-        (void) AddKnob(4, 0, "TEMPO", Engine::Global::FILTER);
+        (void) AddKnob(3, 0, "BLND", Engine::Global::BLEND);
+        (void) AddKnob(4, 0, "TEMPO", Engine::Global::TEMPO);
 
         // non-arrangement mode
         {
@@ -155,7 +159,7 @@ public:
         }
         for(int i = 0; i < 8; ++i) {
             {
-                char* s = strdup("N 0");
+                char* s = strdup("N#0");
                 s[2] = '0' + i + 1;
                 trash.emplace_back([s]() { free(s); });
                 Fl_Box* box = new Fl_Box(FL_NO_BOX, 0, (2+i)*BS, BS, BS, s);
@@ -216,12 +220,43 @@ public:
         std::for_each(group1.begin(), group1.end(), [](Fl_Widget* w) { w->show(); });
         std::for_each(group2.begin(), group2.end(), [](Fl_Widget* w) { w->hide(); });
         end();
+
+        // TEST
+        //SDL_AudioSpec obtained;
+        SDL_AudioSpec request;
+        memset(&request, 0, sizeof(SDL_AudioSpec));
+        request.freq = 44100;
+        request.format = AUDIO_S16;
+        request.samples = 512;
+        request.channels = 0;
+        request.callback = audio_callback;
+        request.userdata = this;
+        SDL_OpenAudio(&request, NULL); // force my format
+        SDL_PauseAudio(1);
+        playing = false;
+
+        engine->set_sample_rate(44100);
+        //engine->set_sample_rate(obtained.freq);
+        engine->use_arrangement(false);
+    }
+
+    static void audio_callback(void* userdata, Uint8* stream, int nstream)
+    {
+        MainWindow* self = (MainWindow*)userdata;
+
+        int16_t* samples = (int16_t*)stream;
+        int nsamples = nstream/2;
+
+        for(int i = 0; i < nsamples; ++i) {
+            float smp = self->engine->next();
+            samples[i] = 32767 * std::max(-1.f, std::min(1.f, smp));
+        }
     }
 
     int handle(int event)
     {
         switch(event) {
-            case FL_KEYUP:
+            case FL_KEYDOWN:
                 switch(Fl::event_key()) {
                     case FL_F+1:
                     case FL_F+2:
@@ -234,6 +269,7 @@ public:
                         {
                             int k = Fl::event_key() - FL_F - 1;
                             pattern64 = ((pattern64 & 0x7) | (k << 3));
+                            (void) engine->pattern(pattern64);
                             //printf("Bank %d off %02x\n", k, pattern64);
                             std::for_each(updateCallbacks.begin(), updateCallbacks.end(), [](std::function<void()> const& fn) { fn(); });
                         }
@@ -249,11 +285,15 @@ public:
                         {
                             int k = Fl::event_key() - '1';
                             pattern64 = ((pattern64 & ~0x7) | (k));
+                            (void) engine->pattern(pattern64);
                             //printf("Pattern %d off %02x\n", k, pattern64);
                             std::for_each(updateCallbacks.begin(), updateCallbacks.end(), [](std::function<void()> const& fn) { fn(); });
                         }
                         break;
                     case ' ':
+                        playing = !playing;
+                        if(playing) engine->reset();
+                        SDL_PauseAudio(!playing);
                         break;
                     case FL_Tab:
                         if(arrangement = !arrangement;
@@ -265,6 +305,20 @@ public:
                             std::for_each(group1.begin(), group1.end(), [](Fl_Widget* w) { w->show(); });
                             std::for_each(group2.begin(), group2.end(), [](Fl_Widget* w) { w->hide(); });
                         }
+                        break;
+                    case FL_Delete:
+                        if(arrangement) {
+                            auto& arrangement = *engine->arrangement();
+                            for(int i = 0; i < 64; ++i) {
+                                arrangement[i] = 0;
+                            }
+                        } else {
+                            auto& pattern = *engine->pattern(pattern64);
+                            for(int i = 0; i < static_cast<int>(Engine::Control::_SIZE_); ++i) {
+                                pattern[i] = 0;
+                            }
+                        }
+                        std::for_each(updateCallbacks.begin(), updateCallbacks.end(), [](std::function<void()> const& fn) { fn(); });
                         break;
                 }// switch Fl::event_Key()
                 return 1;

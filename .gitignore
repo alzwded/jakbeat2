@@ -1,4 +1,4 @@
-jb4
+jb2
 *.so
 *.a
 *.o
@@ -9,3 +9,5 @@ jb4
 *.drm
 __*
 *.out
+log
+log.*

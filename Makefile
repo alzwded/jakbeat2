@@ -1,7 +1,7 @@
 BUILDGUI ?= 1
 CXXFLAGS ?= -g -march=nehalem
 
-ALL = jb4 libengine.a
+ALL = jb2 libengine.a
 
 ifeq ($(BUILDGUI), 1)
 ALL += libgui.so
@@ -11,7 +11,7 @@ endif
 all: $(ALL)
 
 clean:
-	rm -rf libgui.so *.o jb4 libengine.a
+	rm -rf libgui.so *.o jb2 libengine.a
 
 .PHONY: clean
 
@@ -21,11 +21,11 @@ engine.o: engine.cpp engine.h
 libengine.a: engine.o
 	ar -crs libengine.a engine.o
 
-jb4: cli.cpp engine.h libengine.a
-	g++ --std=c++17 $(CXXFLAGS) -o jb4 -I. -fPIC cli.cpp  -ldl -L. -lengine
+jb2: cli.cpp engine.h libengine.a
+	g++ --std=c++17 $(CXXFLAGS) -o jb2 -I. -fPIC cli.cpp  -ldl -L. -lengine
 
 ifeq ($(BUILDGUI), 1)
 libgui.so: gui.cpp engine.h
-	g++ --std=c++17 $(CXXFLAGS) -I. -L. -shared -fPIC -o libgui.so `fltk-config --use-gl --cxxflags` gui.cpp `fltk-config --use-gl --ldflags` -lengine
+	g++ --std=c++17 $(CXXFLAGS) -I. -L. -shared -fPIC -o libgui.so `fltk-config --use-gl --cxxflags` `pkg-config --cflags sdl` gui.cpp `fltk-config --use-gl --ldflags` `pkg-config --libs sdl` -lengine
 endif
 

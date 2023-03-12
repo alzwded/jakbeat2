@@ -10,7 +10,7 @@
 #include <inttypes.h>
 
 #define CURRENT_VERSION 1
-#define MAX_PATTERN 16
+#define MAX_PATTERN 64
 #define FILE_SIZE ( sizeof(Engine::Globals) + MAX_PATTERN * sizeof(Engine::Pattern) + sizeof(Engine::Arrangement) )
 
 #ifndef M_PI
@@ -75,6 +75,13 @@ Engine::Engine(const char* path)
         // 0..127     32..256 bpm
         // 120bpm = (120-32)/256 * 127
         g[static_cast<int>(Global::TEMPO)] = (120-32)*127/256 + 1;
+
+        for(int i = 0; i < 8; ++i) {
+            g[static_cast<int>(Global::N1LP) + 4*i] = 127;
+        }
+
+        g[static_cast<int>(Global::SQ1LP)] = 64;
+        g[static_cast<int>(Global::SQ2LP)] = 64;
     }
 }
 
