@@ -180,7 +180,10 @@ public:
             Fl_Box* box = new Fl_Box(FL_NO_BOX, 3*BS, BS, BS, BS, "OSC2");
             group1.push_back(box);
             owned.emplace_back(box);
-        }{
+        }
+        // TODO note
+        // osc3 (tr)
+        {
             Fl_Box* box = new Fl_Box(FL_NO_BOX, 6*BS, BS, BS, BS, "BASS");
             group1.push_back(box);
             owned.emplace_back(box);
@@ -205,6 +208,7 @@ public:
         for(int i = 0; i < 64; ++i) {
             int row = i >> 3;
             int col = i & 0x7;
+            // TODO bank/preset selector
         }
 
         // refresh
