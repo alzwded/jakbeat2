@@ -123,7 +123,8 @@ void Engine::reset()
 
 float Engine::next()
 {
-    return std::atan(0.f * 2.f * M_PI);
+    float test = random()/float(0x7FFFFFFF);
+    return std::atan(test * M_PI/2.f);
 }
 
 void Engine::use_arrangement(bool use_it)
