@@ -22,7 +22,7 @@ libengine.a: engine.o
 	ar -crs libengine.a engine.o
 
 jb2: cli.cpp engine.h libengine.a
-	g++ --std=c++17 $(CXXFLAGS) -o jb2 -I. -fPIC cli.cpp  -ldl -L. -lengine
+	g++ --std=c++17 $(CXXFLAGS) -o jb2 -I. -fPIC cli.cpp  -ldl -L. -lengine -Wl,-rpath,'$$'ORIGIN -Wl,-rpath-link,'$$'ORIGIN
 
 ifeq ($(BUILDGUI), 1)
 libgui.so: gui.cpp engine.h libengine.a
