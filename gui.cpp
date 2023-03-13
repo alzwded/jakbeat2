@@ -1,10 +1,11 @@
 #include <engine.h>
 
 #include <FL/Fl.H>
-#include <FL/Fl_Window.H>
 #include <FL/Fl_Box.H>
+#include <FL/Fl_Choice.H>
 #include <FL/Fl_Dial.H>
 #include <FL/Fl_Slider.H>
+#include <FL/Fl_Window.H>
 
 #include <SDL/SDL.h>
 
@@ -118,6 +119,118 @@ class MainWindow
         return slider;
     }
 
+    Fl_Widget* AddNote(int x0, int x1, int y, Engine::Control control)
+    {
+        datas.emplace_back(new Data(engine, &pattern64, control));
+        auto* data = datas.back().get();
+
+        auto* choice = new Fl_Choice(x0 * BS, y * BS, (x1-x0+1) * BS, BS);
+        //choice->textsize(8);
+        static const std::array<std::tuple<const char*, int>, 32> notes = {
+                decltype(notes)::value_type{ "E1", 16 },
+                decltype(notes)::value_type{ "F1", 17 },
+                decltype(notes)::value_type{ "F#1", 18 },
+                decltype(notes)::value_type{ "G1", 19 },
+                decltype(notes)::value_type{ "G#1", 20 },
+                decltype(notes)::value_type{ "A1", 21 },
+                decltype(notes)::value_type{ "A#1", 22 },
+                decltype(notes)::value_type{ "B1", 23 },
+                decltype(notes)::value_type{ "C2", 24 },
+                decltype(notes)::value_type{ "C#2", 25 },
+                decltype(notes)::value_type{ "D2", 26 },
+                decltype(notes)::value_type{ "D#2", 27 },
+                decltype(notes)::value_type{ "E2", 28 },
+                decltype(notes)::value_type{ "F2", 29 },
+                decltype(notes)::value_type{ "F#2", 30 },
+                decltype(notes)::value_type{ "G2", 31 },
+                decltype(notes)::value_type{ "G#2", 32 },
+                decltype(notes)::value_type{ "A2", 33 },
+                decltype(notes)::value_type{ "A#2", 34 },
+                decltype(notes)::value_type{ "B2", 35 },
+                decltype(notes)::value_type{ "C3", 36 },
+                decltype(notes)::value_type{ "C#3", 37 },
+                decltype(notes)::value_type{ "D3", 38 },
+                decltype(notes)::value_type{ "D#3", 39 },
+                decltype(notes)::value_type{ "E3", 40 },
+                decltype(notes)::value_type{ "F3", 41 },
+                decltype(notes)::value_type{ "F#3", 42 },
+                decltype(notes)::value_type{ "G3", 43 },
+                decltype(notes)::value_type{ "G#3", 44 },
+                decltype(notes)::value_type{ "A3", 45 },
+                decltype(notes)::value_type{ "A#3", 46 },
+                decltype(notes)::value_type{ "B3", 47 },
+        };
+        for(auto& t : notes) {
+            choice->add(std::get<0>(t), /*shortcut=*/0, /*callback=*/0, /*userdata=*/0);
+        }
+
+        choice->when(FL_WHEN_CHANGED);
+        choice->callback([](Fl_Widget* widget, void* pdata) {
+                auto* self = dynamic_cast<Fl_Choice*>(widget);
+                auto* data = (Data*)pdata;
+                auto& pattern = *data->engine->pattern(*data->pattern);
+                //printf("global %d old=%02x ", static_cast<int>(data->global), globals[static_cast<int>(data->global)]);
+                pattern[static_cast<int>(data->control)] = std::get<1>(notes[self->value()]);
+                //printf("new=%02x\n", globals[static_cast<int>(data->global)]);
+                }, data);
+        updateCallbacks.emplace_back([choice, data]() {
+                auto& pattern = *data->engine->pattern(*data->pattern);
+                //printf("global %d old=%02x ", static_cast<int>(data->global), globals[static_cast<int>(data->global)]);
+                int notevalue = pattern[static_cast<int>(data->control)];
+                // FIXME have a reverse map or smth
+                if(notevalue < std::get<1>(notes[0])) notevalue = 0;
+                else if(notevalue >= std::get<1>(notes[notes.size()-1])) notevalue = notes.size()-1;
+                else notevalue -= std::get<1>(notes[0]);
+                choice->value(notevalue);
+                });
+        owned.emplace_back(choice);
+        return choice;
+    }
+
+    Fl_Widget* AddDdown(int x, int y, int seq)
+    {
+        datas.emplace_back(new Data(engine, seq));
+        auto* data = datas.back().get();
+
+        auto* choice = new Fl_Choice(x * BS, y * BS, BS, BS);
+        //choice->textsize(8);
+        static const char* pats[16] = {
+            "11",
+            "12",
+            "13",
+            "14",
+            "15",
+            "16",
+            "17",
+            "18",
+            "21",
+            "22",
+            "23",
+            "24",
+            "25",
+            "26",
+            "27",
+            "28",
+        };
+        for(auto& t : pats) {
+            choice->add(t, /*shortcut=*/0, /*callback=*/0, /*userdata=*/0);
+        }
+
+        choice->when(FL_WHEN_CHANGED);
+        choice->callback([](Fl_Widget* widget, void* pdata) {
+                auto* self = dynamic_cast<Fl_Choice*>(widget);
+                auto* data = (Data*)pdata;
+                auto& arrangement = *data->engine->arrangement();
+                arrangement[data->slot] = self->value();
+                }, data);
+        updateCallbacks.emplace_back([choice, data]() {
+                auto& arrangement = *data->engine->arrangement();
+                choice->value(arrangement[data->slot]);
+                });
+        owned.emplace_back(choice);
+        return choice;
+    }
+
 public:
     MainWindow(Engine* engine_)
         : Fl_Window(W*BS, H*BS)
@@ -145,7 +258,7 @@ public:
             box->labeltype(FL_NORMAL_LABEL);
             box->align(FL_ALIGN_CENTER);
             box->labelfont(FL_COURIER);
-            char* s = (char*)malloc(4); s[0] = '1'; s[1] = ' '; s[2] = '1'; s[3] = '\0';
+            char* s = (char*)malloc(4); s[0] = '1'; s[1] = '-'; s[2] = '1'; s[3] = '\0';
             updateCallbacks.emplace_back([this, box, s]() {
                     s[0] = '1' + (pattern64>>3);
                     s[2] = '1' + (pattern64&0x7);
@@ -178,21 +291,21 @@ public:
             group1.push_back(box);
             owned.emplace_back(box);
         }
-        // TODO note
+        group1.push_back(AddNote(1, 2, 1, static_cast<Engine::Control>(static_cast<int>(Engine::Control::SQ1))));
         // osc2 (sq2)
         {
             Fl_Box* box = new Fl_Box(FL_NO_BOX, 3*BS, BS, BS, BS, "OSC2");
             group1.push_back(box);
             owned.emplace_back(box);
         }
-        // TODO note
+        group1.push_back(AddNote(4, 5, 1, static_cast<Engine::Control>(static_cast<int>(Engine::Control::SQ2))));
         // osc3 (tr)
         {
             Fl_Box* box = new Fl_Box(FL_NO_BOX, 6*BS, BS, BS, BS, "BASS");
             group1.push_back(box);
             owned.emplace_back(box);
         }
-        // TODO note
+        group1.push_back(AddNote(7, 8, 1, static_cast<Engine::Control>(static_cast<int>(Engine::Control::TR))));
         AddKnob(5, 0, "BASS", Engine::Global::TRVOL);
         AddKnob(6, 0, "O1 LP", Engine::Global::SQ1LP);
         AddKnob(7, 0, "O1 HP", Engine::Global::SQ1HP);
@@ -210,9 +323,9 @@ public:
             owned.emplace_back(box);
         }
         for(int i = 0; i < 64; ++i) {
-            int row = i >> 3;
-            int col = i & 0x7;
-            // TODO bank/preset selector
+            int row = (i >> 3) + 2;
+            int col = (i & 0x7) + 1;
+            group2.push_back(AddDdown(col, row, i));
         }
 
         // refresh
@@ -227,7 +340,7 @@ public:
         memset(&request, 0, sizeof(SDL_AudioSpec));
         request.freq = 44100;
         request.format = AUDIO_S16;
-        request.samples = 512;
+        request.samples = 128;
         request.channels = 0;
         request.callback = audio_callback;
         request.userdata = this;
@@ -268,7 +381,7 @@ public:
                     case FL_F+8:
                         {
                             int k = Fl::event_key() - FL_F - 1;
-                            pattern64 = ((pattern64 & 0x7) | (k << 3));
+                            pattern64 = 8 + k;
                             (void) engine->pattern(pattern64);
                             //printf("Bank %d off %02x\n", k, pattern64);
                             std::for_each(updateCallbacks.begin(), updateCallbacks.end(), [](std::function<void()> const& fn) { fn(); });
@@ -284,7 +397,7 @@ public:
                     case '8':
                         {
                             int k = Fl::event_key() - '1';
-                            pattern64 = ((pattern64 & ~0x7) | (k));
+                            pattern64 = k;
                             (void) engine->pattern(pattern64);
                             //printf("Pattern %d off %02x\n", k, pattern64);
                             std::for_each(updateCallbacks.begin(), updateCallbacks.end(), [](std::function<void()> const& fn) { fn(); });
@@ -320,6 +433,8 @@ public:
                         }
                         std::for_each(updateCallbacks.begin(), updateCallbacks.end(), [](std::function<void()> const& fn) { fn(); });
                         break;
+                    default:
+                        return Fl_Window::handle(event);
                 }// switch Fl::event_Key()
                 return 1;
             default:
