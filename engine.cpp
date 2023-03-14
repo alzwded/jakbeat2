@@ -45,8 +45,11 @@ Engine::Engine(const char* path)
         err(EXIT_FAILURE, "can't open %s\n", path);
     off_t sz = lseek(impl->fd, 0, SEEK_END);
     bool reinit = false;
+    static const int cv = CURRENT_VERSION;
     if(sz < 4) {
         ftruncate(impl->fd, FILE_SIZE);
+        lseek(impl->fd, 0, SEEK_SET);
+        write(impl->fd, &cv, 4);
         reinit = true;
     }
     if(sz < FILE_SIZE) ftruncate(impl->fd, FILE_SIZE);
@@ -67,11 +70,10 @@ Engine::Engine(const char* path)
                 version,
                 CURRENT_VERSION);
     if(reinit) {
-        static const int cv = CURRENT_VERSION;
+        std::memset(impl->ptr, 0, FILE_SIZE);
         memcpy(impl->ptr, &cv, 4);
 
         auto& g = *globals();
-        std::memset(impl->ptr, 0, FILE_SIZE);
         g[static_cast<int>(Global::VOLUME)] = 64;
         g[static_cast<int>(Global::FILTER)] = 127;
         g[static_cast<int>(Global::BLEND)] = 0;
@@ -89,6 +91,11 @@ Engine::Engine(const char* path)
             p[static_cast<int>(Control::SQ1)] = -1;
             p[static_cast<int>(Control::SQ2)] = -1;
             p[static_cast<int>(Control::TR)] = -1;
+        }
+
+        for(int i = 0; i < 64; ++i) {
+            auto& a = *arrangement();
+            a[i] = -1;
         }
 
         g[static_cast<int>(Global::SQ1LP)] = 64;

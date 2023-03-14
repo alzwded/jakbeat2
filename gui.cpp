@@ -195,23 +195,16 @@ class MainWindow
 
         auto* choice = new Fl_Choice(x * BS, y * BS, BS, BS);
         //choice->textsize(8);
-        static const char* pats[16] = {
-            "11",
-            "12",
-            "13",
-            "14",
-            "15",
-            "16",
-            "17",
-            "18",
-            "21",
-            "22",
-            "23",
-            "24",
-            "25",
-            "26",
-            "27",
-            "28",
+        static const char* pats[65] = {
+            "--",
+            "11", "12", "13", "14", "15", "16", "17", "18",
+            "21", "22", "23", "24", "25", "26", "27", "28",
+            "31", "32", "33", "34", "35", "36", "37", "38",
+            "41", "42", "43", "44", "45", "46", "47", "48",
+            "51", "52", "53", "54", "55", "56", "57", "58",
+            "61", "62", "63", "64", "65", "66", "67", "68",
+            "71", "72", "73", "74", "75", "76", "77", "78",
+            "81", "82", "83", "84", "85", "86", "87", "88",
         };
         for(auto& t : pats) {
             choice->add(t, /*shortcut=*/0, /*callback=*/0, /*userdata=*/0);
@@ -222,11 +215,11 @@ class MainWindow
                 auto* self = dynamic_cast<Fl_Choice*>(widget);
                 auto* data = (Data*)pdata;
                 auto& arrangement = *data->engine->arrangement();
-                arrangement[data->slot] = self->value();
+                arrangement[data->slot] = self->value() - 1;
                 }, data);
         updateCallbacks.emplace_back([choice, data]() {
                 auto& arrangement = *data->engine->arrangement();
-                choice->value(arrangement[data->slot]);
+                choice->value(arrangement[data->slot] + 1);
                 });
         owned.emplace_back(choice);
         return choice;
@@ -389,7 +382,8 @@ public:
                         {
                             int k = Fl::event_key() - FL_F - 1;
                             bank = k;
-                            std::for_each(updateCallbacks.begin(), updateCallbacks.end(), [](std::function<void()> const& fn) { fn(); });
+                            if(!arrangement)
+                                std::for_each(updateCallbacks.begin(), updateCallbacks.end(), [](std::function<void()> const& fn) { fn(); });
                         }
                         break;
                     case FL_Escape:
@@ -404,7 +398,16 @@ public:
                     case '6':
                     case '7':
                     case '8':
-                        {
+                        if(arrangement) {
+                            int k = Fl::event_key() - '1';
+                            int newPattern = (bank << 3) | k;
+                            if(auto found = std::find(group2.begin(), group2.end(), Fl::focus());
+                                    found != group2.end())
+                            {
+                                (dynamic_cast<Fl_Choice*>(Fl::focus()))->value(newPattern + 1);
+                                (dynamic_cast<Fl_Choice*>(Fl::focus()))->do_callback();
+                            }
+                        } else {
                             int k = Fl::event_key() - '1';
                             int newPattern = (bank << 3) | k;
                             if(Fl::event_state() & FL_SHIFT) {
@@ -434,12 +437,18 @@ public:
                             std::for_each(group1.begin(), group1.end(), [](Fl_Widget* w) { w->show(); });
                             std::for_each(group2.begin(), group2.end(), [](Fl_Widget* w) { w->hide(); });
                         }
+                        bank = (pattern64 >> 3);
+                        std::for_each(updateCallbacks.begin(), updateCallbacks.end(), [](std::function<void()> const& fn) { fn(); });
                         break;
                     case FL_Delete:
                         if(arrangement) {
-                            auto& arrangement = *engine->arrangement();
-                            for(int i = 0; i < 64; ++i) {
-                                arrangement[i] = 0;
+                            int k = Fl::event_key() - '1';
+                            int newPattern = (bank << 3) | k;
+                            if(auto found = std::find(group2.begin(), group2.end(), Fl::focus());
+                                    found != group2.end())
+                            {
+                                (dynamic_cast<Fl_Choice*>(Fl::focus()))->value(0);
+                                (dynamic_cast<Fl_Choice*>(Fl::focus()))->do_callback();
                             }
                         } else {
                             auto& pattern = *engine->pattern(pattern64);
