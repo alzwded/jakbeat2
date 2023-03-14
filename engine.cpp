@@ -2,12 +2,15 @@
 
 #include <cmath>
 #include <cstdio>
-#include <err.h>
-#include <unistd.h>
-#include <sys/file.h>
-#include <sys/mman.h>
+#include <cstdlib>
+#include <cstring>
 #include <cstdint>
 #include <inttypes.h>
+
+#include <err.h>
+#include <sys/file.h>
+#include <sys/mman.h>
+#include <unistd.h>
 
 #define CURRENT_VERSION 1
 #define MAX_PATTERN 64
@@ -43,10 +46,7 @@ Engine::Engine(const char* path)
     off_t sz = lseek(impl->fd, 0, SEEK_END);
     bool reinit = false;
     if(sz < 4) {
-        static const int cv = CURRENT_VERSION;
         ftruncate(impl->fd, FILE_SIZE);
-        lseek(impl->fd, 0, SEEK_SET);
-        write(impl->fd, &cv, sizeof(cv));
         reinit = true;
     }
     if(sz < FILE_SIZE) ftruncate(impl->fd, FILE_SIZE);
@@ -67,7 +67,11 @@ Engine::Engine(const char* path)
                 version,
                 CURRENT_VERSION);
     if(reinit) {
+        static const int cv = CURRENT_VERSION;
+        memcpy(impl->ptr, &cv, 4);
+
         auto& g = *globals();
+        std::memset(impl->ptr, 0, FILE_SIZE);
         g[static_cast<int>(Global::VOLUME)] = 64;
         g[static_cast<int>(Global::FILTER)] = 127;
         g[static_cast<int>(Global::BLEND)] = 0;
@@ -80,8 +84,16 @@ Engine::Engine(const char* path)
             g[static_cast<int>(Global::N1LP) + 4*i] = 127;
         }
 
+        for(int i = 0; i < MAX_PATTERN; ++i) {
+            auto& p = *pattern(i);
+            p[static_cast<int>(Control::SQ1)] = -1;
+            p[static_cast<int>(Control::SQ2)] = -1;
+            p[static_cast<int>(Control::TR)] = -1;
+        }
+
         g[static_cast<int>(Global::SQ1LP)] = 64;
         g[static_cast<int>(Global::SQ2LP)] = 64;
+
     }
 }
 

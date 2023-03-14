@@ -52,7 +52,7 @@ class MainWindow
     };
 
     Engine* engine;
-    int pattern64;
+    int bank, pattern64;
     bool arrangement, playing;
     std::list<std::unique_ptr<Fl_Widget>> owned;
     std::list<Fl_Widget*> group1;
@@ -127,6 +127,7 @@ class MainWindow
         auto* choice = new Fl_Choice(x0 * BS, y * BS, (x1-x0+1) * BS, BS);
         //choice->textsize(8);
         static const std::array<std::tuple<const char*, int>, 32> notes = {
+                decltype(notes)::value_type{ "--", -1 },
                 decltype(notes)::value_type{ "E1", 16 },
                 decltype(notes)::value_type{ "F1", 17 },
                 decltype(notes)::value_type{ "F#1", 18 },
@@ -158,7 +159,6 @@ class MainWindow
                 decltype(notes)::value_type{ "G#3", 44 },
                 decltype(notes)::value_type{ "A3", 45 },
                 decltype(notes)::value_type{ "A#3", 46 },
-                decltype(notes)::value_type{ "B3", 47 },
         };
         for(auto& t : notes) {
             choice->add(std::get<0>(t), /*shortcut=*/0, /*callback=*/0, /*userdata=*/0);
@@ -178,9 +178,10 @@ class MainWindow
                 //printf("global %d old=%02x ", static_cast<int>(data->global), globals[static_cast<int>(data->global)]);
                 int notevalue = pattern[static_cast<int>(data->control)];
                 // FIXME have a reverse map or smth
-                if(notevalue < std::get<1>(notes[0])) notevalue = 0;
+                if(notevalue == -1) notevalue = 0;
+                else if(notevalue < std::get<1>(notes[1])) notevalue = 1;
                 else if(notevalue >= std::get<1>(notes[notes.size()-1])) notevalue = notes.size()-1;
-                else notevalue -= std::get<1>(notes[0]);
+                else notevalue -= std::get<1>(notes[1]) - 1;
                 choice->value(notevalue);
                 });
         owned.emplace_back(choice);
@@ -235,6 +236,7 @@ public:
     MainWindow(Engine* engine_)
         : Fl_Window(W*BS, H*BS)
         , engine(engine_)
+        , bank(0)
         , pattern64(0)
         , arrangement(false)
         , playing(false)
@@ -260,8 +262,13 @@ public:
             box->labelfont(FL_COURIER);
             char* s = (char*)malloc(4); s[0] = '1'; s[1] = '-'; s[2] = '1'; s[3] = '\0';
             updateCallbacks.emplace_back([this, box, s]() {
-                    s[0] = '1' + (pattern64>>3);
-                    s[2] = '1' + (pattern64&0x7);
+                    if(bank != (pattern64>>3)) {
+                        s[0] = '1' + bank;
+                        s[2] = '?';
+                    } else {
+                        s[0] = '1' + (pattern64>>3);
+                        s[2] = '1' + (pattern64&0x7);
+                    }
                     box->label(s);
                     });
             owned.emplace_back(box);
@@ -285,27 +292,27 @@ public:
             group1.push_back(AddKnob(4, 2+i, "LEN", static_cast<Engine::Global>(static_cast<int>(Engine::Global::N1VOLUME) + 4 * i + 3)));
             group1.push_back(AddSlider(5, 9, 2+i, static_cast<Engine::Control>(static_cast<int>(Engine::Control::N1WHEN) + i)));
         }
-        // osc1 (sq1)
-        {
-            Fl_Box* box = new Fl_Box(FL_NO_BOX, 0, BS, BS, BS, "OSC1");
-            group1.push_back(box);
-            owned.emplace_back(box);
-        }
-        group1.push_back(AddNote(1, 2, 1, static_cast<Engine::Control>(static_cast<int>(Engine::Control::SQ1))));
-        // osc2 (sq2)
-        {
-            Fl_Box* box = new Fl_Box(FL_NO_BOX, 3*BS, BS, BS, BS, "OSC2");
-            group1.push_back(box);
-            owned.emplace_back(box);
-        }
-        group1.push_back(AddNote(4, 5, 1, static_cast<Engine::Control>(static_cast<int>(Engine::Control::SQ2))));
         // osc3 (tr)
         {
-            Fl_Box* box = new Fl_Box(FL_NO_BOX, 6*BS, BS, BS, BS, "BASS");
+            Fl_Box* box = new Fl_Box(FL_NO_BOX, 0*BS, BS, BS, BS, "BASS");
             group1.push_back(box);
             owned.emplace_back(box);
         }
-        group1.push_back(AddNote(7, 8, 1, static_cast<Engine::Control>(static_cast<int>(Engine::Control::TR))));
+        group1.push_back(AddNote(1, 2, 1, static_cast<Engine::Control>(static_cast<int>(Engine::Control::TR))));
+        // osc1 (sq1)
+        {
+            Fl_Box* box = new Fl_Box(FL_NO_BOX, 3*BS, BS, BS, BS, "OSC1");
+            group1.push_back(box);
+            owned.emplace_back(box);
+        }
+        group1.push_back(AddNote(4, 5, 1, static_cast<Engine::Control>(static_cast<int>(Engine::Control::SQ1))));
+        // osc2 (sq2)
+        {
+            Fl_Box* box = new Fl_Box(FL_NO_BOX, 6*BS, BS, BS, BS, "OSC2");
+            group1.push_back(box);
+            owned.emplace_back(box);
+        }
+        group1.push_back(AddNote(7, 8, 1, static_cast<Engine::Control>(static_cast<int>(Engine::Control::SQ2))));
         AddKnob(5, 0, "BASS", Engine::Global::TRVOL);
         AddKnob(6, 0, "O1 LP", Engine::Global::SQ1LP);
         AddKnob(7, 0, "O1 HP", Engine::Global::SQ1HP);
@@ -381,11 +388,13 @@ public:
                     case FL_F+8:
                         {
                             int k = Fl::event_key() - FL_F - 1;
-                            pattern64 = 8 + k;
-                            (void) engine->pattern(pattern64);
-                            //printf("Bank %d off %02x\n", k, pattern64);
+                            bank = k;
                             std::for_each(updateCallbacks.begin(), updateCallbacks.end(), [](std::function<void()> const& fn) { fn(); });
                         }
+                        break;
+                    case FL_Escape:
+                        bank = (pattern64 >> 3);
+                        std::for_each(updateCallbacks.begin(), updateCallbacks.end(), [](std::function<void()> const& fn) { fn(); });
                         break;
                     case '1':
                     case '2':
@@ -397,9 +406,16 @@ public:
                     case '8':
                         {
                             int k = Fl::event_key() - '1';
-                            pattern64 = k;
-                            (void) engine->pattern(pattern64);
+                            int newPattern = (bank << 3) | k;
+                            if(Fl::event_state() & FL_SHIFT) {
+                                auto* old = *engine->pattern(pattern64);
+                                auto* pattern = *engine->pattern(newPattern);
+                                memcpy(pattern, old, static_cast<int>(Engine::Control::_SIZE_) * sizeof(int));
+                            } else {
+                                (void) engine->pattern(newPattern);
+                            }
                             //printf("Pattern %d off %02x\n", k, pattern64);
+                            pattern64 = (bank << 3) | k;
                             std::for_each(updateCallbacks.begin(), updateCallbacks.end(), [](std::function<void()> const& fn) { fn(); });
                         }
                         break;
