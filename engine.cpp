@@ -245,9 +245,25 @@ float Engine::next()
 
     float nsample = impl->noise.next();
 
+    // add noises
     for(int i = 0; i < 8; ++i) {
         sum += impl->decays[i].next(impl->t, period) * nsample;
     }
+    // apply blend
+    sum *= 1.f - (*globals())[static_cast<int>(Global::BLEND)] / 127.f;
+
+    // add squares
+    float sqsum = 0.f;
+    // TODO samples
+    // apply blend
+    sqsum *= (*globals())[static_cast<int>(Global::BLEND)] / 127.f;
+    sum += sqsum;
+
+    // add bass
+    // TODO
+
+    // apply global volume
+    sum *= (*globals())[static_cast<int>(Global::VOLUME)] / 127.f;
 
     impl->t++;
     if(impl->t >= period) {
@@ -257,6 +273,7 @@ float Engine::next()
         }
         impl->t = 0;
     }
+    // mix and amp distortion
     return std::atan(sum * M_PI/2.f);
 }
 
