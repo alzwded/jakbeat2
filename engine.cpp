@@ -20,6 +20,59 @@
 static float M_PI = std::asin(1);
 #endif
 
+struct Noise {
+    unsigned reg = 0xA001;
+
+    float next() {
+        if(reg & 0x1) reg = (reg >> 1) ^ 0xA801;
+        else reg >>= 1;
+        return float(reg) / float(0xFFFF) - 0.5f;
+    }
+};
+
+struct Decay {
+    Engine* engine;
+    int when;
+    int decay;
+    int volume;
+
+    int counter;
+    bool on;
+    float next(int t, int period) {
+        int A = (*engine->pattern())[when] * period / 127;
+        int N = (*engine->globals())[decay] * engine->get_sample_rate() / 127;
+        float V = (*engine->globals())[volume] / 127.f;
+        //printf("%p: A=%d N=%d t=%d period=%d V=%f\n",
+        //        this,
+        //        A, N, t, period, V);
+        //printf("when = %d decay = %d volume = %d\n",
+        //        when, decay, volume);
+        //printf("when raw = %d decay raw = %d volume raw = %d\n",
+        //    (*engine->globals())[when],
+        //    (*engine->pattern())[decay],
+        //    (*engine->globals())[volume]);
+        if(!on) {
+            if(t == A) {
+                on = true;
+                counter = 0;
+            } else {
+                return 0.f;
+            }
+        }
+        if(on) {
+            ++counter;
+            if(counter < N) {
+                return (1.f - float(counter)/float(N)) * V;
+            } else {
+                on = false;
+                counter = 0;
+                return 0.f;
+            }
+        }
+        return 0.f;
+    }
+};
+
 struct Impl
 {
     static Impl* const Get(Engine* e) {
@@ -34,6 +87,10 @@ struct Impl
     int t = 0;
     int arrangement_index = 0;
     int sample_rate = 44100;
+    int current_pattern = 0;
+
+    Noise noise;
+    Decay decays[8];
 };
 
 Engine::Engine(const char* path)
@@ -100,7 +157,14 @@ Engine::Engine(const char* path)
 
         g[static_cast<int>(Global::SQ1LP)] = 64;
         g[static_cast<int>(Global::SQ2LP)] = 64;
+    }
 
+    // initialize crap
+    for(int i = 0; i < 8; ++i) {
+        impl->decays[i].engine = this;
+        impl->decays[i].when = static_cast<int>(Control::N1WHEN) + i;
+        impl->decays[i].decay = static_cast<int>(Global::N1ENVELOPE) + i * 4;
+        impl->decays[i].volume = static_cast<int>(Global::N1VOLUME) + i * 4;
     }
 }
 
@@ -121,7 +185,20 @@ Engine::Globals* Engine::globals()
 Engine::Pattern* Engine::pattern(int i)
 {
     if(i >= MAX_PATTERN || i < 0) { abort(); }
+    Impl::Get(this)->current_pattern = i;
     return (Engine::Pattern*)&(Impl::Get(this)->ptr[sizeof(Engine::Globals) + i * sizeof(Engine::Pattern)]);
+}
+
+Engine::Pattern* Engine::pattern()
+{
+    auto* impl = Impl::Get(this);
+
+    if(impl->use_arrangement) {
+        return pattern((*arrangement())[impl->arrangement_index]);
+    } else {
+        return pattern(impl->current_pattern);
+    }
+
 }
 
 Engine::Arrangement* Engine::arrangement()
@@ -134,6 +211,11 @@ void Engine::set_sample_rate(int sr)
     Impl::Get(this)->sample_rate = sr;
 }
 
+int Engine::get_sample_rate()
+{
+    return Impl::Get(this)->sample_rate;
+}
+
 void Engine::reset()
 {
     Impl::Get(this)->t = 0;
@@ -142,8 +224,40 @@ void Engine::reset()
 
 float Engine::next()
 {
-    float test = random()/float(0x7FFFFFFF);
-    return std::atan(test * M_PI/2.f);
+    auto* impl = Impl::Get(this);
+
+    if(impl->use_arrangement) {
+        int cnt = 64;
+        while((*arrangement())[impl->arrangement_index] < 0) {
+            impl->arrangement_index++;
+            impl->arrangement_index &= 0x3F;
+            cnt--;
+        }
+        if(cnt <= 0) return 0.f;
+    }
+
+    // tempo
+    //       0 ...... 8s ........ 8 * sr
+    //       127 .... 1s ........ 1 * sr
+    int period = std::round(((1.f - (*globals())[static_cast<int>(Global::TEMPO)] / 127.f) * 7.f + 1.f) * impl->sample_rate);
+
+    float sum = 0.f;
+
+    float nsample = impl->noise.next();
+
+    for(int i = 0; i < 8; ++i) {
+        sum += impl->decays[i].next(impl->t, period) * nsample;
+    }
+
+    impl->t++;
+    if(impl->t >= period) {
+        if(impl->use_arrangement) {
+            impl->arrangement_index++;
+            impl->arrangement_index &= 0x3F;
+        }
+        impl->t = 0;
+    }
+    return std::atan(sum * M_PI/2.f);
 }
 
 void Engine::use_arrangement(bool use_it)

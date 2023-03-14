@@ -55,9 +55,11 @@ struct __attribute__((visibility("default"))) Engine
 
     Globals* globals();
     Pattern* pattern(int i);
+    Pattern* pattern();
     Arrangement* arrangement();
 
     void set_sample_rate(int sr);
+    int get_sample_rate();
     void reset();
     float next();
 

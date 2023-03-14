@@ -4,7 +4,7 @@
 #include <FL/Fl_Box.H>
 #include <FL/Fl_Choice.H>
 #include <FL/Fl_Dial.H>
-#include <FL/Fl_Slider.H>
+#include <FL/Fl_Value_Slider.H>
 #include <FL/Fl_Window.H>
 
 #include <SDL/SDL.h>
@@ -96,13 +96,13 @@ class MainWindow
         datas.emplace_back(new Data(engine, &pattern64, control));
         auto* data = datas.back().get();
 
-        Fl_Slider* slider = new Fl_Slider(x0 * BS, y * BS, (x1-x0+1)*BS, BS);
+        Fl_Value_Slider* slider = new Fl_Value_Slider(x0 * BS, y * BS, (x1-x0+1)*BS, BS);
         slider->type(FL_HOR_NICE_SLIDER);
         slider->bounds(0, 127);
         slider->step(1);
         slider->when(FL_WHEN_CHANGED);
         slider->callback([](Fl_Widget* widget, void* pdata) {
-                auto* self = dynamic_cast<Fl_Slider*>(widget);
+                auto* self = dynamic_cast<Fl_Value_Slider*>(widget);
                 auto* data = (Data*)pdata;
                 auto& pattern = *data->engine->pattern(*data->pattern);
                 //printf("global %d old=%02x ", static_cast<int>(data->global), globals[static_cast<int>(data->global)]);
