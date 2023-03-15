@@ -37,7 +37,7 @@ struct HP {
     float y1 = 0, x1 = 0;
 
     float next(float x) {
-        float fr = (*engine->globals())[control] / 127.f * 16000.f;
+        float fr = (*engine->globals())[control] / 127.f * 12000.f;
         float a = 1.f / (2.f * M_PI * (1.f / engine->get_sample_rate()) * fr + 1.f);
         float o = a * y1 + a * (x - x1);
         y1 = o;
@@ -53,7 +53,7 @@ struct LP {
     float y1 = 0;
 
     float next(float x) {
-        float fr = (*engine->globals())[control] / 127.f * 16000.f;
+        float fr = (*engine->globals())[control] / 127.f * 12000.f;
         float rc = 1.f / (2.f * M_PI * fr);
         float dt = (1.f / engine->get_sample_rate());
         float a = dt / (dt + rc);
@@ -223,9 +223,9 @@ Engine::Engine(const char* path)
         impl->decays[i].volume = static_cast<int>(Global::N1VOLUME) + i * 4;
         impl->decays[i].on = static_cast<int>(Control::N1ON) + i;
         impl->HPs[i].engine = this;
-        impl->HPs[i].control = static_cast<int>(Global::N1HP) + i;
+        impl->HPs[i].control = static_cast<int>(Global::N1HP) + 4*i;
         impl->LPs[i].engine = this;
-        impl->LPs[i].control = static_cast<int>(Global::N1LP) + i;
+        impl->LPs[i].control = static_cast<int>(Global::N1LP) + 4*i;
     }
 }
 
