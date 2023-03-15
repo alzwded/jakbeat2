@@ -154,38 +154,38 @@ class MainWindow
         auto* choice = new Fl_Choice(x0 * BS, y * BS, (x1-x0+1) * BS, BS);
         //choice->textsize(8);
         static const std::array<std::tuple<const char*, int>, 32> notes = {
-                decltype(notes)::value_type{ "E1", 16 },
-                decltype(notes)::value_type{ "F1", 17 },
-                decltype(notes)::value_type{ "F#1", 18 },
-                decltype(notes)::value_type{ "G1", 19 },
-                decltype(notes)::value_type{ "G#1", 20 },
-                decltype(notes)::value_type{ "A1", 21 },
-                decltype(notes)::value_type{ "A#1", 22 },
-                decltype(notes)::value_type{ "B1", 23 },
-                decltype(notes)::value_type{ "C2", 24 },
-                decltype(notes)::value_type{ "C#2", 25 },
-                decltype(notes)::value_type{ "D2", 26 },
-                decltype(notes)::value_type{ "D#2", 27 },
-                decltype(notes)::value_type{ "E2", 28 },
-                decltype(notes)::value_type{ "F2", 29 },
-                decltype(notes)::value_type{ "F#2", 30 },
-                decltype(notes)::value_type{ "G2", 31 },
-                decltype(notes)::value_type{ "G#2", 32 },
-                decltype(notes)::value_type{ "A2", 33 },
-                decltype(notes)::value_type{ "A#2", 34 },
-                decltype(notes)::value_type{ "B2", 35 },
-                decltype(notes)::value_type{ "C3", 36 },
-                decltype(notes)::value_type{ "C#3", 37 },
-                decltype(notes)::value_type{ "D3", 38 },
-                decltype(notes)::value_type{ "D#3", 39 },
-                decltype(notes)::value_type{ "E3", 40 },
-                decltype(notes)::value_type{ "F3", 41 },
-                decltype(notes)::value_type{ "F#3", 42 },
-                decltype(notes)::value_type{ "G3", 43 },
-                decltype(notes)::value_type{ "G#3", 44 },
-                decltype(notes)::value_type{ "A3", 45 },
-                decltype(notes)::value_type{ "A#3", 46 },
-                decltype(notes)::value_type{ "B3", 47 },
+                decltype(notes)::value_type{ "E1",  28 },
+                decltype(notes)::value_type{ "F1",  29 },
+                decltype(notes)::value_type{ "F#1", 30 },
+                decltype(notes)::value_type{ "G1",  31 },
+                decltype(notes)::value_type{ "G#1", 32 },
+                decltype(notes)::value_type{ "A1",  33 },
+                decltype(notes)::value_type{ "A#1", 34 },
+                decltype(notes)::value_type{ "B1",  35 },
+                decltype(notes)::value_type{ "C2",  36 },
+                decltype(notes)::value_type{ "C#2", 37 },
+                decltype(notes)::value_type{ "D2",  38 },
+                decltype(notes)::value_type{ "D#2", 39 },
+                decltype(notes)::value_type{ "E2",  40 },
+                decltype(notes)::value_type{ "F2",  41 },
+                decltype(notes)::value_type{ "F#2", 42 },
+                decltype(notes)::value_type{ "G2",  43 },
+                decltype(notes)::value_type{ "G#2", 44 },
+                decltype(notes)::value_type{ "A2",  45 },
+                decltype(notes)::value_type{ "A#2", 46 },
+                decltype(notes)::value_type{ "B2",  47 },
+                decltype(notes)::value_type{ "C3",  48 },
+                decltype(notes)::value_type{ "C#3", 49 },
+                decltype(notes)::value_type{ "D3",  50 },
+                decltype(notes)::value_type{ "D#3", 51 },
+                decltype(notes)::value_type{ "E3",  52 },
+                decltype(notes)::value_type{ "F3",  53 },
+                decltype(notes)::value_type{ "F#3", 54 },
+                decltype(notes)::value_type{ "G3",  55 },
+                decltype(notes)::value_type{ "G#3", 56 },
+                decltype(notes)::value_type{ "A3",  57 },
+                decltype(notes)::value_type{ "A#3", 58 },
+                decltype(notes)::value_type{ "B3",  59 },
         };
         for(auto& t : notes) {
             choice->add(std::get<0>(t), /*shortcut=*/0, /*callback=*/0, /*userdata=*/0);
@@ -348,7 +348,8 @@ public:
         memset(&request, 0, sizeof(SDL_AudioSpec));
         request.freq = 44100;
         request.format = AUDIO_S16;
-        request.samples = 128;
+        //request.samples = 128;
+        request.samples = 8192;
         request.channels = 0;
         request.callback = audio_callback;
         request.userdata = this;
