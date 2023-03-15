@@ -37,7 +37,8 @@ struct HP {
     float y1 = 0, x1 = 0;
 
     float next(float x) {
-        float fr = (*engine->globals())[control] / 127.f * 12000.f;
+        //float fr = (*engine->globals())[control] / 127.f * 12000.f;
+        float fr = (7.f - std::log(128.f - (*engine->globals())[control])/std::log(2)) / 7.f * 16000.f;
         float a = 1.f / (2.f * M_PI * (1.f / engine->get_sample_rate()) * fr + 1.f);
         float o = a * y1 + a * (x - x1);
         y1 = o;
@@ -53,7 +54,9 @@ struct LP {
     float y1 = 0;
 
     float next(float x) {
-        float fr = (*engine->globals())[control] / 127.f * 12000.f;
+        //float fr = (*engine->globals())[control] / 127.f * 12000.f;
+        float fr = (7.f - std::log(128.f - (*engine->globals())[control])/std::log(2)) / 7.f * 16000.f;
+        //if(control == static_cast<int>(Engine::Global::FILTER)) printf("%g\n", fr);
         float rc = 1.f / (2.f * M_PI * fr);
         float dt = (1.f / engine->get_sample_rate());
         float a = dt / (dt + rc);
@@ -134,6 +137,9 @@ struct Impl
     Decay decays[8];
     HP HPs[8];
     LP LPs[8];
+    LP globalLP;
+    LP LPSQs[2];
+    HP HPSQs[2];
 };
 
 Engine::Engine(const char* path)
@@ -227,6 +233,16 @@ Engine::Engine(const char* path)
         impl->LPs[i].engine = this;
         impl->LPs[i].control = static_cast<int>(Global::N1LP) + 4*i;
     }
+    impl->globalLP.engine = this;
+    impl->globalLP.control = static_cast<int>(Global::FILTER);
+    impl->LPSQs[0].engine = this;
+    impl->LPSQs[0].control = static_cast<int>(Global::SQ1LP);
+    impl->LPSQs[1].engine = this;
+    impl->LPSQs[1].control = static_cast<int>(Global::SQ2LP);
+    impl->HPSQs[0].engine = this;
+    impl->HPSQs[0].control = static_cast<int>(Global::SQ1HP);
+    impl->HPSQs[1].engine = this;
+    impl->HPSQs[1].control = static_cast<int>(Global::SQ2HP);
 }
 
 Engine::~Engine()
@@ -326,6 +342,9 @@ float Engine::next()
 
     // add bass
     // TODO
+
+    // apply global lowpass
+    sum = impl->globalLP.next(sum);
 
     // apply global volume
     sum *= (*globals())[static_cast<int>(Global::VOLUME)] / 127.f;
