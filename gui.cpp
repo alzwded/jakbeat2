@@ -445,6 +445,7 @@ public:
                             std::for_each(group1.begin(), group1.end(), [](Fl_Widget* w) { w->show(); });
                             std::for_each(group2.begin(), group2.end(), [](Fl_Widget* w) { w->hide(); });
                         }
+                        engine->use_arrangement(arrangement);
                         bank = (pattern64 >> 3);
                         std::for_each(updateCallbacks.begin(), updateCallbacks.end(), [](std::function<void()> const& fn) { fn(); });
                         break;

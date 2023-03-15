@@ -295,6 +295,7 @@ float Engine::next()
             cnt--;
         }
         if(cnt <= 0) return 0.f;
+        pattern((*arrangement())[impl->arrangement_index]);
     }
 
     // tempo
