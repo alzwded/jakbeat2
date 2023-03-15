@@ -1,5 +1,5 @@
 BUILDGUI ?= 1
-CXXFLAGS ?= -g -march=nehalem
+CXXFLAGS ?= -O3 -march=nehalem
 
 ALL = jb2 libengine.a
 

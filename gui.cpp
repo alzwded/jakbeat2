@@ -349,7 +349,7 @@ public:
         request.freq = 44100;
         request.format = AUDIO_S16;
         //request.samples = 128;
-        request.samples = 8192;
+        request.samples = 512;
         request.channels = 0;
         request.callback = audio_callback;
         request.userdata = this;

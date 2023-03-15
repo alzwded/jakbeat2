@@ -5,6 +5,7 @@ jb2
 *.log
 *.wav
 *.sng
+!scrsh/*.sng
 *.pat
 *.drm
 __*
