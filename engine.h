@@ -41,11 +41,22 @@ struct __attribute__((visibility("default"))) Engine
         SQ1,
         SQ2,
         TR,
+        N1ON,
+        N2ON,
+        N3ON,
+        N4ON,
+        N5ON,
+        N6ON,
+        N7ON,
+        N8ON,
+        SQ1ON,
+        SQ2ON,
+        TRON,
 
         _SIZE_
     };
 
-    typedef int Pattern[16];
+    typedef int Pattern[32];
     static_assert(sizeof(Pattern)/sizeof(int) >= static_cast<size_t>(Control::_SIZE_), "bad size");
 
     typedef int Globals[64];

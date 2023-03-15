@@ -30,15 +30,56 @@ struct Noise {
     }
 };
 
+struct HP {
+    Engine* engine;
+    int control = static_cast<int>(Engine::Global::N1HP);
+
+    float y1 = 0, x1 = 0;
+
+    float next(float x) {
+        float fr = (*engine->globals())[control] / 127.f * 16000.f;
+        float a = 1.f / (2.f * M_PI * (1.f / engine->get_sample_rate()) * fr + 1.f);
+        float o = a * y1 + a * (x - x1);
+        y1 = o;
+        x1 = x;
+        return o;
+    }
+};
+
+struct LP {
+    Engine* engine;
+    int control = static_cast<int>(Engine::Global::N1LP);
+
+    float y1 = 0;
+
+    float next(float x) {
+        float fr = (*engine->globals())[control] / 127.f * 16000.f;
+        float rc = 1.f / (2.f * M_PI * fr);
+        float dt = (1.f / engine->get_sample_rate());
+        float a = dt / (dt + rc);
+        float o = (1-a) * y1 + a * x;
+        y1 = o;
+        return o;
+    }
+};
+
 struct Decay {
     Engine* engine;
     int when;
     int decay;
     int volume;
+    int on;
 
     int counter;
-    bool on;
+    bool active;
     float next(int t, int period) {
+        int O = (*engine->pattern())[on];
+        if(!O) {
+            counter = 0;
+            active = false;
+            return 0.f;
+        }
+
         int A = (*engine->pattern())[when] * period / 127;
         int N = (*engine->globals())[decay] * engine->get_sample_rate() / 127;
         float V = (*engine->globals())[volume] / 127.f;
@@ -51,20 +92,20 @@ struct Decay {
         //    (*engine->globals())[when],
         //    (*engine->pattern())[decay],
         //    (*engine->globals())[volume]);
-        if(!on) {
+        if(!active) {
             if(t == A) {
-                on = true;
+                active = true;
                 counter = 0;
             } else {
                 return 0.f;
             }
         }
-        if(on) {
+        if(active) {
             ++counter;
             if(counter < N) {
                 return (1.f - float(counter)/float(N)) * V;
             } else {
-                on = false;
+                active = false;
                 counter = 0;
                 return 0.f;
             }
@@ -91,6 +132,8 @@ struct Impl
 
     Noise noise;
     Decay decays[8];
+    HP HPs[8];
+    LP LPs[8];
 };
 
 Engine::Engine(const char* path)
@@ -142,12 +185,25 @@ Engine::Engine(const char* path)
         for(int i = 0; i < 8; ++i) {
             g[static_cast<int>(Global::N1LP) + 4*i] = 127;
         }
+        g[static_cast<int>(Global::N1VOLUME)] = 127;
+        g[static_cast<int>(Global::N1ENVELOPE)] = 16;
 
         for(int i = 0; i < MAX_PATTERN; ++i) {
             auto& p = *pattern(i);
-            p[static_cast<int>(Control::SQ1)] = -1;
-            p[static_cast<int>(Control::SQ2)] = -1;
-            p[static_cast<int>(Control::TR)] = -1;
+            p[static_cast<int>(Control::N1ON)] = 1;
+            p[static_cast<int>(Control::N2ON)] = 0;
+            p[static_cast<int>(Control::N3ON)] = 0;
+            p[static_cast<int>(Control::N4ON)] = 0;
+            p[static_cast<int>(Control::N5ON)] = 0;
+            p[static_cast<int>(Control::N6ON)] = 0;
+            p[static_cast<int>(Control::N7ON)] = 0;
+            p[static_cast<int>(Control::N8ON)] = 0;
+            p[static_cast<int>(Control::SQ1ON)] = 1;
+            p[static_cast<int>(Control::SQ2ON)] = 1;
+            p[static_cast<int>(Control::TRON)] = 0;
+            p[static_cast<int>(Control::TR)] = 16;
+            p[static_cast<int>(Control::SQ1)] = 28;
+            p[static_cast<int>(Control::SQ2)] = 32;
         }
 
         for(int i = 0; i < 64; ++i) {
@@ -165,6 +221,11 @@ Engine::Engine(const char* path)
         impl->decays[i].when = static_cast<int>(Control::N1WHEN) + i;
         impl->decays[i].decay = static_cast<int>(Global::N1ENVELOPE) + i * 4;
         impl->decays[i].volume = static_cast<int>(Global::N1VOLUME) + i * 4;
+        impl->decays[i].on = static_cast<int>(Control::N1ON) + i;
+        impl->HPs[i].engine = this;
+        impl->HPs[i].control = static_cast<int>(Global::N1HP) + i;
+        impl->LPs[i].engine = this;
+        impl->LPs[i].control = static_cast<int>(Global::N1LP) + i;
     }
 }
 
@@ -247,7 +308,10 @@ float Engine::next()
 
     // add noises
     for(int i = 0; i < 8; ++i) {
-        sum += impl->decays[i].next(impl->t, period) * nsample;
+        float smpl = impl->decays[i].next(impl->t, period) * nsample;
+        smpl = impl->HPs[i].next(smpl);
+        smpl = impl->LPs[i].next(smpl);
+        sum += smpl;
     }
     // apply blend
     sum *= 1.f - (*globals())[static_cast<int>(Global::BLEND)] / 127.f;

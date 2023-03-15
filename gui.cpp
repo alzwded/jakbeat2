@@ -4,6 +4,7 @@
 #include <FL/Fl_Box.H>
 #include <FL/Fl_Choice.H>
 #include <FL/Fl_Dial.H>
+#include <FL/Fl_Light_Button.H>
 #include <FL/Fl_Value_Slider.H>
 #include <FL/Fl_Window.H>
 
@@ -91,6 +92,32 @@ class MainWindow
         return dial;
     }
 
+    Fl_Widget* AddButton(int x, int y, const char* text, Engine::Control control)
+    {
+        datas.emplace_back(new Data(engine, &pattern64, control));
+        auto* data = datas.back().get();
+
+        Fl_Light_Button* button = new Fl_Light_Button(x * BS, y * BS, BS, BS, text);
+        button->type(FL_TOGGLE_BUTTON);
+        button->when(FL_WHEN_CHANGED);
+        button->callback([](Fl_Widget* widget, void* pdata) {
+                auto* self = dynamic_cast<Fl_Light_Button*>(widget);
+                auto* data = (Data*)pdata;
+                auto& pattern = *data->engine->pattern(*data->pattern);
+                pattern[static_cast<int>(data->control)] = self->value();
+                }, data);
+        updateCallbacks.emplace_back([button, data]() {
+                auto& pattern = *data->engine->pattern(*data->pattern);
+                if(pattern[static_cast<int>(data->control)]) {
+                    button->set();
+                } else {
+                    button->clear();
+                }
+                });
+        owned.emplace_back(button);
+        return button;
+    }
+
     Fl_Widget* AddSlider(int x0, int x1, int y, Engine::Control control)
     {
         datas.emplace_back(new Data(engine, &pattern64, control));
@@ -127,7 +154,6 @@ class MainWindow
         auto* choice = new Fl_Choice(x0 * BS, y * BS, (x1-x0+1) * BS, BS);
         //choice->textsize(8);
         static const std::array<std::tuple<const char*, int>, 32> notes = {
-                decltype(notes)::value_type{ "--", -1 },
                 decltype(notes)::value_type{ "E1", 16 },
                 decltype(notes)::value_type{ "F1", 17 },
                 decltype(notes)::value_type{ "F#1", 18 },
@@ -159,6 +185,7 @@ class MainWindow
                 decltype(notes)::value_type{ "G#3", 44 },
                 decltype(notes)::value_type{ "A3", 45 },
                 decltype(notes)::value_type{ "A#3", 46 },
+                decltype(notes)::value_type{ "B3", 47 },
         };
         for(auto& t : notes) {
             choice->add(std::get<0>(t), /*shortcut=*/0, /*callback=*/0, /*userdata=*/0);
@@ -169,19 +196,16 @@ class MainWindow
                 auto* self = dynamic_cast<Fl_Choice*>(widget);
                 auto* data = (Data*)pdata;
                 auto& pattern = *data->engine->pattern(*data->pattern);
-                //printf("global %d old=%02x ", static_cast<int>(data->global), globals[static_cast<int>(data->global)]);
                 pattern[static_cast<int>(data->control)] = std::get<1>(notes[self->value()]);
-                //printf("new=%02x\n", globals[static_cast<int>(data->global)]);
                 }, data);
         updateCallbacks.emplace_back([choice, data]() {
                 auto& pattern = *data->engine->pattern(*data->pattern);
                 //printf("global %d old=%02x ", static_cast<int>(data->global), globals[static_cast<int>(data->global)]);
                 int notevalue = pattern[static_cast<int>(data->control)];
                 // FIXME have a reverse map or smth
-                if(notevalue == -1) notevalue = 0;
-                else if(notevalue < std::get<1>(notes[1])) notevalue = 1;
+                if(notevalue < std::get<1>(notes[0])) notevalue = 0;
                 else if(notevalue >= std::get<1>(notes[notes.size()-1])) notevalue = notes.size()-1;
-                else notevalue -= std::get<1>(notes[1]) - 1;
+                else notevalue -= std::get<1>(notes[0]);
                 choice->value(notevalue);
                 });
         owned.emplace_back(choice);
@@ -271,41 +295,25 @@ public:
             group1.push_back(box);
         }
         for(int i = 0; i < 8; ++i) {
-            {
-                char* s = strdup("N#0");
-                s[2] = '0' + i + 1;
-                trash.emplace_back([s]() { free(s); });
-                Fl_Box* box = new Fl_Box(FL_NO_BOX, 0, (2+i)*BS, BS, BS, s);
-                group1.push_back(box);
-                owned.emplace_back(box);
-            }
-            group1.push_back(AddKnob(1, 2+i, "VOL", static_cast<Engine::Global>(static_cast<int>(Engine::Global::N1VOLUME) + 4 * i + 0)));
-            group1.push_back(AddKnob(2, 2+i, "LP",  static_cast<Engine::Global>(static_cast<int>(Engine::Global::N1VOLUME) + 4 * i + 1)));
-            group1.push_back(AddKnob(3, 2+i, "HP",  static_cast<Engine::Global>(static_cast<int>(Engine::Global::N1VOLUME) + 4 * i + 2)));
-            group1.push_back(AddKnob(4, 2+i, "LEN", static_cast<Engine::Global>(static_cast<int>(Engine::Global::N1VOLUME) + 4 * i + 3)));
+            char* s = strdup("NZ0");
+            s[2] = '0' + i + 1;
+            trash.emplace_back([s]() { free(s); });
+            group1.push_back(AddButton(0, 2+i, s, static_cast<Engine::Control>(static_cast<int>(Engine::Control::N1ON) + i)));
+            group1.push_back(AddKnob(1, 2+i, "VOL", static_cast<Engine::Global>(static_cast<int>(Engine::Global::N1VOLUME) + 4 * i)));
+            group1.push_back(AddKnob(2, 2+i, "LP",  static_cast<Engine::Global>(static_cast<int>(Engine::Global::N1LP) + 4 * i)));
+            group1.push_back(AddKnob(3, 2+i, "HP",  static_cast<Engine::Global>(static_cast<int>(Engine::Global::N1HP) + 4 * i)));
+            group1.push_back(AddKnob(4, 2+i, "LEN", static_cast<Engine::Global>(static_cast<int>(Engine::Global::N1ENVELOPE) + 4 * i)));
             group1.push_back(AddSlider(5, 9, 2+i, static_cast<Engine::Control>(static_cast<int>(Engine::Control::N1WHEN) + i)));
         }
         // osc3 (tr)
-        {
-            Fl_Box* box = new Fl_Box(FL_NO_BOX, 0*BS, BS, BS, BS, "BASS");
-            group1.push_back(box);
-            owned.emplace_back(box);
-        }
-        group1.push_back(AddNote(1, 2, 1, static_cast<Engine::Control>(static_cast<int>(Engine::Control::TR))));
+        group1.push_back(AddButton(0, 1, "BASS", Engine::Control::TRON));
+        group1.push_back(AddNote(1, 2, 1, Engine::Control::TR));
         // osc1 (sq1)
-        {
-            Fl_Box* box = new Fl_Box(FL_NO_BOX, 3*BS, BS, BS, BS, "OSC1");
-            group1.push_back(box);
-            owned.emplace_back(box);
-        }
-        group1.push_back(AddNote(4, 5, 1, static_cast<Engine::Control>(static_cast<int>(Engine::Control::SQ1))));
+        group1.push_back(AddButton(3, 1, "OSC1", Engine::Control::SQ1ON));
+        group1.push_back(AddNote(4, 5, 1, Engine::Control::SQ1));
         // osc2 (sq2)
-        {
-            Fl_Box* box = new Fl_Box(FL_NO_BOX, 6*BS, BS, BS, BS, "OSC2");
-            group1.push_back(box);
-            owned.emplace_back(box);
-        }
-        group1.push_back(AddNote(7, 8, 1, static_cast<Engine::Control>(static_cast<int>(Engine::Control::SQ2))));
+        group1.push_back(AddButton(6, 1, "OSC2", Engine::Control::SQ2ON));
+        group1.push_back(AddNote(7, 8, 1, Engine::Control::SQ2));
         AddKnob(5, 0, "BASS", Engine::Global::TRVOL);
         AddKnob(6, 0, "O1 LP", Engine::Global::SQ1LP);
         AddKnob(7, 0, "O1 HP", Engine::Global::SQ1HP);
